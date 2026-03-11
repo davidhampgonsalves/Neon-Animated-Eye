@@ -1,0 +1,23 @@
+# Target — must match idf.py set-target esp32c3
+CONFIG_IDF_TARGET="esp32c3"
+
+# Disable WiFi and Bluetooth — not needed, keeps ADC reliable
+CONFIG_ESP_WIFI_ENABLED=n
+CONFIG_BT_ENABLED=n
+CONFIG_BT_NIMBLE_ENABLED=n
+
+# FreeRTOS — 100Hz avoids tick interrupt corrupting RMT on single-core C3
+CONFIG_FREERTOS_HZ=100
+
+# RMT ISR/encoder in IRAM to avoid flash cache misses during LED refresh
+CONFIG_RMT_ENCODER_FUNC_IN_IRAM=y
+CONFIG_RMT_TX_ISR_HANDLER_IN_IRAM=y
+CONFIG_RMT_RX_ISR_HANDLER_IN_IRAM=y
+CONFIG_RMT_OBJ_CACHE_SAFE=y
+
+# Log level
+CONFIG_LOG_DEFAULT_LEVEL_INFO=y
+
+# Use USB-Serial/JTAG for console instead of UART on GPIO 20/21
+# (GPIO 20 and 21 are used for LED strips)
+CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
