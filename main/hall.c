@@ -109,8 +109,9 @@ void hall_monitor(void)
             if (s_window[i] < s_peak_val) below++;
         }
         if (below > WINDOW_SAMPLES / 2) {
-            ESP_LOGI(TAG, "monitor: fall detected, peak=%d, updating zero_position", s_peak_val);
+            ESP_LOGI(TAG, "monitor: fall detected, peak=%d, updating ******** zero_position *********", s_peak_val);
             state.zero_position_us = s_peak_time_us;
+            state.motor_time_ms = (uint32_t)((now_us - s_peak_time_us) / 1000);
             s_rise_detected = false;
             s_peak_val = 0;
         }

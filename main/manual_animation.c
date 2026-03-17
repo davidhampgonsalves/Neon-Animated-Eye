@@ -3,6 +3,7 @@
 #include "motor.h"
 #include "hall.h"
 #include "blink.h"
+#include "leds.h"
 
 
 #include "driver/usb_serial_jtag.h"
@@ -15,9 +16,6 @@ static const char *TAG = "manual";
 
 
 static bool s_inited = false;
-static float s_phase = 0.0f;
-static float s_phase_step = 200.0f / 7500.0f;
-static int s_step = 0;
 
 void manual_animation_init(void)
 {
@@ -47,13 +45,9 @@ bool manual_animation(uint32_t elapsed_ms)
 
         blink(state.motor_time_ms);
 
-        s_phase += s_phase_step;
-        if (s_phase > 1.0f) s_phase = 1.0f;
-
-        s_step++;
-        int raw = hall_read();
-        ESP_LOGI(TAG, "step=%d motor_time=%lu raw=%d",
-                 s_step, (unsigned long)state.motor_time_ms, raw);
+        // int raw = hall_read();
+        // ESP_LOGI(TAG, "step=%d motor_time=%lu raw=%d",
+        //          s_step, (unsigned long)state.motor_time_ms, raw);
     }
 
     return false;
