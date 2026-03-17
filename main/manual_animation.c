@@ -19,13 +19,7 @@ static bool s_inited = false;
 
 void manual_animation_init(void)
 {
-    usb_serial_jtag_driver_config_t usb_cfg = {
-        .rx_buffer_size = 256,
-        .tx_buffer_size = 256,
-    };
-    ESP_ERROR_CHECK(usb_serial_jtag_driver_install(&usb_cfg));
     s_inited = true;
-
     ESP_LOGI(TAG, "Press any key to advance motor 200ms + update phase.");
 }
 

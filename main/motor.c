@@ -18,7 +18,7 @@ static const char *TAG = "motor";
 #define LEDC_DUTY_RES    LEDC_TIMER_8_BIT
 #define LEDC_FREQ_HZ     5000
 #define MOTOR_SPEED_HOMING 255
-#define MOTOR_SPEED      160
+#define MOTOR_SPEED      180
 
 static bool    s_driving = false;
 static int64_t s_drive_start_us = 0;
@@ -32,10 +32,15 @@ static void motor_set_speed(uint8_t speed)
 
 static void motor_drive_at(uint8_t speed)
 {
-    if (!s_driving) {
-        s_drive_start_us = esp_timer_get_time();
-        s_driving = true;
+    if (s_driving) {
+        int64_t now_us = esp_timer_get_time();
+        uint32_t delta_ms = (uint32_t)((now_us - s_drive_start_us) / 1000);
+        state.motor_time_ms += delta_ms;
+        s_drive_start_us = now_us;
+        return;
     }
+    s_drive_start_us = esp_timer_get_time();
+    s_driving = true;
     gpio_set_level((gpio_num_t)MOTOR_PIN_STBY, 1);
     gpio_set_level((gpio_num_t)MOTOR_PIN_AIN1, 1);
     gpio_set_level((gpio_num_t)MOTOR_PIN_AIN2, 0);

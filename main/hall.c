@@ -22,6 +22,7 @@ static int64_t  s_last_sample_us;
 static int      s_window_first;
 static int      s_peak_val;
 static int64_t  s_peak_time_us;
+static uint32_t s_peak_motor_time_ms;
 static bool     s_rise_detected;
 
 void hall_init(void)
@@ -75,6 +76,7 @@ void hall_monitor(void)
     if (raw > s_peak_val) {
         s_peak_val = raw;
         s_peak_time_us = now_us;
+        s_peak_motor_time_ms = state.motor_time_ms;
     }
 
     s_window_idx++;
@@ -111,7 +113,7 @@ void hall_monitor(void)
         if (below > WINDOW_SAMPLES / 2) {
             ESP_LOGI(TAG, "monitor: fall detected, peak=%d, updating ******** zero_position *********", s_peak_val);
             state.zero_position_us = s_peak_time_us;
-            state.motor_time_ms = (uint32_t)((now_us - s_peak_time_us) / 1000);
+            state.motor_time_ms = state.motor_time_ms - s_peak_motor_time_ms;
             s_rise_detected = false;
             s_peak_val = 0;
         }
