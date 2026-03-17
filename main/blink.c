@@ -14,7 +14,6 @@ bool blink(uint32_t elapsed)
   elapsed = elapsed % CYCLE;
   if(elapsed > HALF_CYCLE) elapsed = HALF_CYCLE-(elapsed-HALF_CYCLE);
 
-  ESP_LOGI("blink", "elapsed=%lu and motor time=%lu", elapsed, state.motor_time_ms);
 
   if(elapsed < 3700)
     occlude_eye(0);
@@ -31,19 +30,16 @@ bool blink(uint32_t elapsed)
   else
     occlude_eye(6);
 
-  // if(elapsed < 2000)
-  //   occlude_lid(0);
-  // else if(elapsed < 5000)
-  //   occlude_lid(1) );
-  // else
-  //   occlude_lid(2);
   for(int count=0 ; count < lid_schedule_len ; count++) {
     uint32_t start = lid_schedule[count];
     uint32_t end = (count + 1) >= lid_schedule_len ? HALF_CYCLE : lid_schedule[count+1];
 
-    if(elapsed < start) continue;
+    if(elapsed > end) continue;
 
-    int percentage_complete = (elapsed - start) / (end - start);
+    int percentage_complete = 100 - ((elapsed - start) * 100 / (end - start));
+
+    // ESP_LOGI("blink", "elapsed=%lu, motor time=%lu, percent=%d", elapsed, state.motor_time_ms, percentage_complete);
+    ESP_LOGI("blink", "elapsed=%lu, %=%d, start=%lu, end=%lu", elapsed, percentage_complete, start, end);
     occlude_lid(count, percentage_complete);
 
     break;

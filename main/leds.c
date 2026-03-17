@@ -20,8 +20,11 @@ static led_strip_handle_t s_eyeball;
 
 void set_pixel(led_strip_handle_t strip, uint32_t idx, uint8_t r, uint8_t g, uint8_t b, uint8_t brightness_pct)
 {
+    // uint8_t br = brightness_pct > 100 ? 100 : brightness_pct;
+    // led_strip_set_pixel(strip, idx, r * br / 100, g * br / 100, b * br / 100);
     uint8_t br = brightness_pct > 100 ? 100 : brightness_pct;
-    led_strip_set_pixel(strip, idx, r * br / 100, g * br / 100, b * br / 100);
+    uint32_t scale = br * br;
+    led_strip_set_pixel(strip, idx, r * scale / 10000, g * scale / 10000, b * scale / 10000);
 }
 
 static void off(led_strip_handle_t strip, int idx)
@@ -41,7 +44,6 @@ void leds_off(void)
 
 void occlude_eye(int count)
 {
-    // ESP_LOGI(TAG, "occlude_eye count=%d", count);
     const rgb_t c = g_cfg->eyeball_colour;
     for (int i = 0; i < NUM_EYEBALL; i++)
         set_pixel(s_eyeball, i, c.r, c.g, c.b, 100);
@@ -64,17 +66,21 @@ void occlude_lid(int count, int percent_complete)
 
   int start_top = START_TOP + count;
   int end_top = END_TOP - count;
-  for (int i = start_top; i < end_top; i++) {
-    if(i == start_top || i == end_top-1)
-      set_pixel(s_eyelid, i, 255, 0, 0, percent_complete);
-    else
-      set_pixel(s_eyelid, i, 255, 0, 0, 100);
-  }
+
+  set_pixel(s_eyelid, start_top, 255, 0, 0, percent_complete);
+  set_pixel(s_eyelid, end_top, 255, 0, 0, percent_complete);
+
+  for (int i = start_top+1; i < end_top; i++)
+    set_pixel(s_eyelid, i, 255, 0, 0, 100);
 
   int start_bottom = START_BOTTOM + count;
   int end_bottom = END_BOTTOM - count;
-  for (int i = start_bottom; i < end_bottom; i++)
-      set_pixel(s_eyelid, i, 0, 0, 255, 100);
+
+  set_pixel(s_eyelid, start_bottom, 255, 0, 0, percent_complete);
+  set_pixel(s_eyelid, end_bottom, 255, 0, 0, percent_complete);
+
+  for (int i = start_bottom+1; i < end_bottom; i++)
+    set_pixel(s_eyelid, i, 255, 0, 0, 100);
 }
 
 void leds_refresh(void)
