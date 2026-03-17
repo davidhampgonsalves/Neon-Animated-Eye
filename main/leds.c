@@ -20,8 +20,11 @@ static led_strip_handle_t s_eyeball;
 
 void set_pixel(led_strip_handle_t strip, uint32_t idx, uint8_t r, uint8_t g, uint8_t b, uint8_t brightness_pct)
 {
-    // uint8_t br = brightness_pct > 100 ? 100 : brightness_pct;
-    // led_strip_set_pixel(strip, idx, r * br / 100, g * br / 100, b * br / 100);
+    if(brightness_pct == 100) {
+      led_strip_set_pixel(strip, idx, r, g, b);
+      return;
+    }
+
     uint8_t br = brightness_pct > 100 ? 100 : brightness_pct;
     uint32_t scale = br * br;
     led_strip_set_pixel(strip, idx, r * scale / 10000, g * scale / 10000, b * scale / 10000);
@@ -42,7 +45,7 @@ void leds_off(void)
     led_strip_refresh(s_eyeball);
 }
 
-void occlude_eye(int count)
+void occlude_eye(int count, int percent_complete)
 {
     const rgb_t c = g_cfg->eyeball_colour;
     for (int i = 0; i < NUM_EYEBALL; i++)
@@ -54,11 +57,19 @@ void occlude_eye(int count)
         off(s_eyeball, (20 + i) % 22);
         off(s_eyeball, 19 - i);
     }
+
+    if (count < 6) {
+        int fade = percent_complete;
+        set_pixel(s_eyeball, 8 - count, c.r, c.g, c.b, fade);
+        set_pixel(s_eyeball, 9 + count, c.r, c.g, c.b, fade);
+        set_pixel(s_eyeball, (20 + count) % 22, c.r, c.g, c.b, fade);
+        set_pixel(s_eyeball, 19 - count, c.r, c.g, c.b, fade);
+    }
 }
 
 #define START_TOP  4
 #define END_TOP  26
-#define START_BOTTOM  33
+#define START_BOTTOM  32
 #define END_BOTTOM  54
 void occlude_lid(int count, int percent_complete)
 {
@@ -76,11 +87,11 @@ void occlude_lid(int count, int percent_complete)
   int start_bottom = START_BOTTOM + count;
   int end_bottom = END_BOTTOM - count;
 
-  set_pixel(s_eyelid, start_bottom, 255, 0, 0, percent_complete);
-  set_pixel(s_eyelid, end_bottom, 255, 0, 0, percent_complete);
+  set_pixel(s_eyelid, start_bottom, 0, 0, 255, percent_complete);
+  set_pixel(s_eyelid, end_bottom, 0, 0, 255, percent_complete);
 
   for (int i = start_bottom+1; i < end_bottom; i++)
-    set_pixel(s_eyelid, i, 255, 0, 0, 100);
+    set_pixel(s_eyelid, i, 0, 0, 255, 100);
 }
 
 void leds_refresh(void)

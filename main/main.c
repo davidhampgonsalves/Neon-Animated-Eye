@@ -31,7 +31,7 @@ void app_main(void)
     leds_init();
     hall_init();
 
-    // state.zero_position_us = homing_run();
+    state.zero_position_us = homing_run();
     state.state = STATE_BLINKING;
     state.state_start_us = esp_timer_get_time();
 
@@ -64,9 +64,9 @@ void app_main(void)
                     complete = idle(elapsed_ms);
                     break;
                 case STATE_BLINKING:
-                    complete = blink(elapsed_ms);
-                    // motor_drive();
-                    // complete = blink(state.motor_time_ms);
+                    // complete = blink(elapsed_ms);
+                    motor_drive();
+                    complete = blink(state.motor_time_ms);
                     break;
                 case STATE_MANUAL_ANIMATION:
                     complete = manual_animation(elapsed_ms);
