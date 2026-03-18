@@ -134,7 +134,7 @@ void transition_lids(int count, int percent_complete) {
     set_pixel(s_eyelid, i, 255, 0, 0, percent_complete);
 
   for (int i = start_bottom+1; i < end_bottom; i++)
-    set_pixel(s_eyelid, i, 255 * percent_complete / 100, 0, 255 * (100 - percent_complete) / 100, 100);
+    set_pixel(s_eyelid, i, 255 * (100 - percent_complete) / 100, 0, 255 * percent_complete / 100, 100);
 }
 
 void leds_refresh(void)

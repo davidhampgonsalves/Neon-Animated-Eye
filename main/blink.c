@@ -4,6 +4,7 @@
 #include "motor.h"
 #include "leds.h"
 #include "esp_log.h"
+#include <stdlib.h>
 
 #define CYCLE_HALF (CYCLE + HALF_CYCLE)
 #define TWO_CYCLE (CYCLE * 2)
@@ -13,6 +14,17 @@
 #define EYE_CLOSED (HALF_CYCLE + (HALF_CYCLE/4))
 #define LIDS_MEET_2 (EYE_CLOSED + (EYE_CLOSED - LIDS_MEET))
 #define FINISH -1 // probably don't need
+
+#define SPEED_RAMP_WINDOW 1000
+
+static uint8_t get_motor_speed(uint32_t elapsed)
+{
+  int32_t dist1 = abs((int32_t)elapsed - (int32_t)LIDS_MEET);
+  int32_t dist2 = abs((int32_t)elapsed - (int32_t)LIDS_MEET_2);
+  int32_t dist = dist1 < dist2 ? dist1 : dist2;
+  if (dist >= SPEED_RAMP_WINDOW) return MOTOR_SPEED;
+  return MOTOR_SPEED + (MOTOR_SPEED_PEAK - MOTOR_SPEED) * (SPEED_RAMP_WINDOW - dist) / SPEED_RAMP_WINDOW;
+}
 
 uint32_t eye_schedule[] = { 3700, 3882, 4000, 4329, 5125, 5722 };
 size_t eye_schedule_len = sizeof(eye_schedule) / sizeof(eye_schedule[0]);
@@ -65,7 +77,6 @@ void animate_lid_close(uint32_t elapsed) {
   if(elapsed > CYCLE) elapsed = CYCLE-(elapsed-CYCLE);
 
   if(elapsed < LID_TRANSITION_END || (elapsed > LIDS_MEET_2 && elapsed < LID_TRANSITION_END_2)) {
-    motor_drive_fast(true);
     int transition_percent = (elapsed - LIDS_MEET) * 100 / (LID_TRANSITION_END - LIDS_MEET);
     if(elapsed < LID_TRANSITION_DURATION)
       transition_percent = 100 - transition_percent;
@@ -83,13 +94,6 @@ void animate_lid_close(uint32_t elapsed) {
       int percentage_complete = 100 - ((elapsed - start) * 100 / (end - start));
       occlude_bottom_lid(count, percentage_complete, false);
 
-      if(elapsed < EYE_CLOSED)
-        motor_drive(true);
-      else if(elapsed > EYE_CLOSED && elapsed < EYE_CLOSED + 50)
-        motor_coast();
-      else
-        motor_drive(false);
-
       break;
     }
   }
@@ -97,13 +101,21 @@ void animate_lid_close(uint32_t elapsed) {
 
 bool blink(uint32_t elapsed)
 {
-  if(elapsed < LIDS_MEET) {
-    motor_drive(true);
+  uint8_t speed = get_motor_speed(elapsed);
+
+  if (elapsed < LIDS_MEET) {
+    motor_drive_at_speed(true, speed);
     animate_open_close(elapsed);
-  } else if(elapsed < CYCLE_HALF)
+  } else if (elapsed < CYCLE_HALF) {
+    if (elapsed < EYE_CLOSED)
+      motor_drive_at_speed(true, speed);
+    else if (elapsed < EYE_CLOSED + 50)
+      motor_coast();
+    else
+      motor_drive_at_speed(false, speed);
     animate_lid_close(elapsed);
-  else if(elapsed < TWO_CYCLE) {
-    motor_drive(true);
+  } else if (elapsed < TWO_CYCLE) {
+    motor_drive_at_speed(true, speed);
     animate_open_close(elapsed);
   } else {
     motor_coast();

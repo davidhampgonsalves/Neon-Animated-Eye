@@ -16,8 +16,6 @@ static const char *TAG = "motor";
 #define LEDC_DUTY_RES    LEDC_TIMER_8_BIT
 #define LEDC_FREQ_HZ     5000
 #define MOTOR_SPEED_HOMING 255
-#define MOTOR_SPEED      180
-#define MOTOR_SPEED_FAST 234
 
 static bool s_driving = false;
 static bool s_forward = true;
@@ -46,9 +44,9 @@ void motor_drive(bool forward)
     motor_drive_at(MOTOR_SPEED, forward);
 }
 
-void motor_drive_fast(bool forward)
+void motor_drive_at_speed(bool forward, uint8_t speed)
 {
-    motor_drive_at(MOTOR_SPEED_FAST, forward);
+    motor_drive_at(speed, forward);
 }
 
 void motor_drive_homing(void)
