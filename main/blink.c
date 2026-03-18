@@ -6,7 +6,6 @@
 #include "esp_log.h"
 #include <stdlib.h>
 
-#define CYCLE_HALF (CYCLE + HALF_CYCLE)
 #define TWO_CYCLE (CYCLE * 2)
 
 #define START 0
@@ -70,32 +69,31 @@ void animate_open_close(uint32_t elapsed) {
 
 #define LID_TRANSITION_END (LIDS_MEET + 500)
 #define LID_TRANSITION_END_2 (LIDS_MEET_2 + 500)
-#define LID_TRANSITION_DURATION (LID_TRANSITION_END - LIDS_MEET)
 void animate_lid_close(uint32_t elapsed) {
   lid_off();
   eye_off();
-  if(elapsed > CYCLE) elapsed = CYCLE-(elapsed-CYCLE);
 
-  if(elapsed < LID_TRANSITION_END || (elapsed > LIDS_MEET_2 && elapsed < LID_TRANSITION_END_2)) {
-    int transition_percent = (elapsed - LIDS_MEET) * 100 / (LID_TRANSITION_END - LIDS_MEET);
-    if(elapsed < LID_TRANSITION_DURATION)
-      transition_percent = 100 - transition_percent;
+  if (elapsed < LID_TRANSITION_END) {
+    int pct = (elapsed - LIDS_MEET) * 100 / (LID_TRANSITION_END - LIDS_MEET);
+    transition_lids(2, pct);
 
-    ESP_LOGI("animate_lid_close", "transition elapsed=%lu, percent=%d", (unsigned long)elapsed, transition_percent);
-    transition_lids(2, transition_percent);
-  } else {
-    ESP_LOGI("animate_lid_close", "open/close elapsed=%lu", (unsigned long)elapsed);
-    for(int count=0 ; count < lid_schedule_len ; count++) {
-      uint32_t start = lid_schedule[count] + HALF_CYCLE;
-      uint32_t end = (count + 1) >= lid_schedule_len ? CYCLE : lid_schedule[count+1] + HALF_CYCLE;
+  } else if (elapsed < LIDS_MEET_2) {
+    uint32_t e = elapsed;
+    if (e > EYE_CLOSED)
+      e = EYE_CLOSED - (e - EYE_CLOSED);
 
-      if(elapsed > end) continue;
-
-      int percentage_complete = 100 - ((elapsed - start) * 100 / (end - start));
+    for (int count = 0; count < lid_schedule_len; count++) {
+      uint32_t start = lid_schedule[count] + LID_TRANSITION_END;
+      uint32_t end = (count + 1) >= lid_schedule_len ? EYE_CLOSED : lid_schedule[count + 1] + LID_TRANSITION_END;
+      if (e > end) continue;
+      int percentage_complete = 100 - ((e - start) * 100 / (end - start));
       occlude_bottom_lid(count, percentage_complete, false);
-
       break;
     }
+
+  } else {
+    int pct = (elapsed - LIDS_MEET_2) * 100 / (LID_TRANSITION_END_2 - LIDS_MEET_2);
+    transition_lids(2, 100 - pct);
   }
 }
 
@@ -106,17 +104,19 @@ bool blink(uint32_t elapsed)
   if (elapsed < LIDS_MEET) {
     motor_drive_at_speed(true, speed);
     animate_open_close(elapsed);
-  } else if (elapsed < CYCLE_HALF) {
+  } else if (elapsed < LID_TRANSITION_END_2) {
     if (elapsed < EYE_CLOSED)
       motor_drive_at_speed(true, speed);
     else if (elapsed < EYE_CLOSED + 50)
       motor_coast();
-    else
+    else if (elapsed < LIDS_MEET_2)
       motor_drive_at_speed(false, speed);
+    else
+      motor_drive_at_speed(true, speed);
     animate_lid_close(elapsed);
   } else if (elapsed < TWO_CYCLE) {
     motor_drive_at_speed(true, speed);
-    animate_open_close(elapsed);
+    animate_open_close(elapsed - LID_TRANSITION_END_2 + CYCLE - LIDS_MEET);
   } else {
     motor_coast();
     return true;
