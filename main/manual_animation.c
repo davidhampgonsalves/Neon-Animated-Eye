@@ -33,15 +33,12 @@ bool manual_animation(uint32_t elapsed_ms)
     uint8_t ch;
     int len = usb_serial_jtag_read_bytes(&ch, 1, 0);
     if (len > 0) {
-        motor_drive();
+        motor_drive(true);
         vTaskDelay(pdMS_TO_TICKS(200));
         motor_coast();
 
-        blink(state.motor_time_ms);
-
-        // int raw = hall_read();
-        // ESP_LOGI(TAG, "step=%d motor_time=%lu raw=%d",
-        //          s_step, (unsigned long)state.motor_time_ms, raw);
+        uint32_t elapsed = (uint32_t)((esp_timer_get_time() - state.state_start_us) / 1000);
+        blink(elapsed);
     }
 
     return false;

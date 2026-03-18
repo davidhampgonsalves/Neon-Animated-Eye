@@ -1,8 +1,6 @@
 #include "motor.h"
-#include "state.h"
 
 #include "esp_log.h"
-#include "esp_timer.h"
 #include "driver/ledc.h"
 #include "driver/gpio.h"
 
@@ -19,9 +17,10 @@ static const char *TAG = "motor";
 #define LEDC_FREQ_HZ     5000
 #define MOTOR_SPEED_HOMING 255
 #define MOTOR_SPEED      180
+#define MOTOR_SPEED_FAST 234
 
-static bool    s_driving = false;
-static int64_t s_drive_start_us = 0;
+static bool s_driving = false;
+static bool s_forward = true;
 
 static void motor_set_speed(uint8_t speed)
 {
@@ -30,41 +29,36 @@ static void motor_set_speed(uint8_t speed)
     ledc_update_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL);
 }
 
-static void motor_drive_at(uint8_t speed)
+static void motor_drive_at(uint8_t speed, bool forward)
 {
-    if (s_driving) {
-        int64_t now_us = esp_timer_get_time();
-        uint32_t delta_ms = (uint32_t)((now_us - s_drive_start_us) / 1000);
-        state.motor_time_ms += delta_ms;
-        s_drive_start_us = now_us;
-        return;
-    }
-    s_drive_start_us = esp_timer_get_time();
-    s_driving = true;
-    gpio_set_level((gpio_num_t)MOTOR_PIN_STBY, 1);
-    gpio_set_level((gpio_num_t)MOTOR_PIN_AIN1, 1);
-    gpio_set_level((gpio_num_t)MOTOR_PIN_AIN2, 0);
     motor_set_speed(speed);
+    if (s_driving && s_forward == forward) return;
+
+    s_driving = true;
+    s_forward = forward;
+    gpio_set_level((gpio_num_t)MOTOR_PIN_STBY, 1);
+    gpio_set_level((gpio_num_t)MOTOR_PIN_AIN1, forward ? 1 : 0);
+    gpio_set_level((gpio_num_t)MOTOR_PIN_AIN2, forward ? 0 : 1);
 }
 
-void motor_drive(void)
+void motor_drive(bool forward)
 {
-    motor_drive_at(MOTOR_SPEED);
+    motor_drive_at(MOTOR_SPEED, forward);
+}
+
+void motor_drive_fast(bool forward)
+{
+    motor_drive_at(MOTOR_SPEED_FAST, forward);
 }
 
 void motor_drive_homing(void)
 {
-    motor_drive_at(MOTOR_SPEED_HOMING);
+    motor_drive_at(MOTOR_SPEED_HOMING, true);
 }
 
 void motor_coast(void)
 {
-    if (s_driving) {
-        int64_t now_us = esp_timer_get_time();
-        uint32_t delta_ms = (uint32_t)((now_us - s_drive_start_us) / 1000);
-        state.motor_time_ms += delta_ms;
-        s_driving = false;
-    }
+    s_driving = false;
     gpio_set_level((gpio_num_t)MOTOR_PIN_AIN1, 0);
     gpio_set_level((gpio_num_t)MOTOR_PIN_AIN2, 0);
     motor_set_speed(0);

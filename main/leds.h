@@ -5,7 +5,12 @@
 
 void leds_init(void);
 void leds_off(void);
+void lid_off(void);
+void eye_off(void);
 void occlude_eye(int count, int percent_complete);
 void occlude_lid(int count, int percent_complete);
+void occlude_top_lid(int count, int percent_complete);
+void occlude_bottom_lid(int count, int percent_complete, bool blue);
+void transition_lids(int count, int percent_complete);
 void leds_refresh(void);
 void set_pixel(led_strip_handle_t strip, uint32_t idx, uint8_t r, uint8_t g, uint8_t b, uint8_t brightness_pct);

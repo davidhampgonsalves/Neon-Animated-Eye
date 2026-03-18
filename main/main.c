@@ -33,7 +33,7 @@ void app_main(void)
 
     state.zero_position_us = homing_run();
     state.state = STATE_BLINKING;
-    state.state_start_us = esp_timer_get_time();
+    state.state_start_us = state.zero_position_us;
 
     usb_serial_jtag_driver_config_t usb_cfg = {
         .rx_buffer_size = 256,
@@ -61,12 +61,11 @@ void app_main(void)
 
             switch (state.state) {
                 case STATE_IDLE_OPEN:
+                    motor_coast();
                     complete = idle(elapsed_ms);
                     break;
                 case STATE_BLINKING:
-                    // complete = blink(elapsed_ms);
-                    motor_drive();
-                    complete = blink(state.motor_time_ms);
+                    complete = blink(elapsed_ms);
                     break;
                 case STATE_MANUAL_ANIMATION:
                     complete = manual_animation(elapsed_ms);

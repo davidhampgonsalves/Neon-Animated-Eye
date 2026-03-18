@@ -2,6 +2,9 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#define HALF_CYCLE 6687
+#define CYCLE (HALF_CYCLE * 2)
+
 typedef struct { uint8_t r, g, b; } rgb_t;
 
 static inline rgb_t rgb_make(uint8_t r, uint8_t g, uint8_t b) {

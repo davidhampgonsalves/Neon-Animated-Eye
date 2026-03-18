@@ -82,11 +82,8 @@ int64_t homing_run(void)
     int64_t now_us = esp_timer_get_time();
     uint32_t overshoot_ms = (uint32_t)((now_us - peak_time_us) / 1000);
 
-    state.motor_time_ms = overshoot_ms;
-
-    ESP_LOGI(TAG, "Homed. peak=%d overshoot=%lums motor_time=%lums",
-             peak_val, (unsigned long)overshoot_ms,
-             (unsigned long)state.motor_time_ms);
+    ESP_LOGI(TAG, "Homed. peak=%d overshoot=%lums",
+             peak_val, (unsigned long)overshoot_ms);
 
     return peak_time_us;
 }

@@ -45,6 +45,18 @@ void leds_off(void)
     led_strip_refresh(s_eyeball);
 }
 
+void lid_off(void)
+{
+  for (int i = 0; i < NUM_EYELID; i++)
+      off(s_eyelid, i);
+}
+
+void eye_off(void)
+{
+  for (int i = 0; i < NUM_EYEBALL; i++)
+      off(s_eyeball, i);
+}
+
 void occlude_eye(int count, int percent_complete)
 {
     const rgb_t c = g_cfg->eyeball_colour;
@@ -73,7 +85,13 @@ void occlude_eye(int count, int percent_complete)
 #define END_BOTTOM  54
 void occlude_lid(int count, int percent_complete)
 {
-  for(int i=0 ; i < NUM_EYELID ; i++) off(s_eyelid, i);
+  occlude_top_lid(count, percent_complete);
+  occlude_bottom_lid(count, percent_complete, true);
+}
+
+void occlude_top_lid(int count, int percent_complete)
+{
+  for(int i=START_TOP ; i < END_TOP; i++) off(s_eyelid, i);
 
   int start_top = START_TOP + count;
   int end_top = END_TOP - count;
@@ -83,15 +101,40 @@ void occlude_lid(int count, int percent_complete)
 
   for (int i = start_top+1; i < end_top; i++)
     set_pixel(s_eyelid, i, 255, 0, 0, 100);
+}
+
+void occlude_bottom_lid(int count, int percent_complete, bool blue)
+{
+  for(int i=START_BOTTOM ; i < END_BOTTOM; i++) off(s_eyelid, i);
 
   int start_bottom = START_BOTTOM + count;
   int end_bottom = END_BOTTOM - count;
 
-  set_pixel(s_eyelid, start_bottom, 0, 0, 255, percent_complete);
-  set_pixel(s_eyelid, end_bottom, 0, 0, 255, percent_complete);
+  uint8_t r = blue ? 0 : 255;
+  uint8_t b = blue ? 255 : 0;
+
+  set_pixel(s_eyelid, start_bottom, r, 0, b, percent_complete);
+  set_pixel(s_eyelid, end_bottom, r, 0, b, percent_complete);
 
   for (int i = start_bottom+1; i < end_bottom; i++)
-    set_pixel(s_eyelid, i, 0, 0, 255, 100);
+    set_pixel(s_eyelid, i, r, 0, b, 100);
+}
+
+void transition_lids(int count, int percent_complete) {
+  for(int i=0 ; i < NUM_EYELID ; i++) off(s_eyelid, i);
+
+  int start_top = START_TOP + count;
+  int end_top = END_TOP - count;
+  int start_bottom = START_BOTTOM + count;
+  int end_bottom = END_BOTTOM - count;
+
+  percent_complete = 100 - percent_complete;
+
+  for (int i = start_top+1; i < end_top; i++)
+    set_pixel(s_eyelid, i, 255, 0, 0, percent_complete);
+
+  for (int i = start_bottom+1; i < end_bottom; i++)
+    set_pixel(s_eyelid, i, 255 * percent_complete / 100, 0, 255 * (100 - percent_complete) / 100, 100);
 }
 
 void leds_refresh(void)

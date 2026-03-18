@@ -1,5 +1,6 @@
 #include "hall.h"
 #include "state.h"
+#include "config.h"
 
 #include "esp_adc/adc_oneshot.h"
 #include "esp_timer.h"
@@ -22,7 +23,6 @@ static int64_t  s_last_sample_us;
 static int      s_window_first;
 static int      s_peak_val;
 static int64_t  s_peak_time_us;
-static uint32_t s_peak_motor_time_ms;
 static bool     s_rise_detected;
 
 void hall_init(void)
@@ -76,7 +76,6 @@ void hall_monitor(void)
     if (raw > s_peak_val) {
         s_peak_val = raw;
         s_peak_time_us = now_us;
-        s_peak_motor_time_ms = state.motor_time_ms;
     }
 
     s_window_idx++;
@@ -111,9 +110,15 @@ void hall_monitor(void)
             if (s_window[i] < s_peak_val) below++;
         }
         if (below > WINDOW_SAMPLES / 2) {
-            ESP_LOGI(TAG, "\n\nmonitor: fall detected, peak=%d, updating ******** zero_position *********\n\n", s_peak_val);
             state.zero_position_us = s_peak_time_us;
-            state.motor_time_ms = state.motor_time_ms - s_peak_motor_time_ms;
+
+            uint32_t elapsed_ms = (uint32_t)((now_us - state.state_start_us) / 1000);
+            uint32_t overshoot_ms = (uint32_t)((now_us - s_peak_time_us) / 1000);
+            uint32_t expected = ((elapsed_ms + CYCLE / 2) / CYCLE) * CYCLE + overshoot_ms;
+            int32_t correction_ms = (int32_t)expected - (int32_t)elapsed_ms;
+            state.state_start_us -= (int64_t)correction_ms * 1000;
+
+            ESP_LOGI(TAG, "fall detected, peak=%d, correction=%ldms", s_peak_val, (long)correction_ms);
             s_rise_detected = false;
             s_peak_val = 0;
         }
