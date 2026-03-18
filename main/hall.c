@@ -1,6 +1,5 @@
 #include "hall.h"
 #include "state.h"
-#include "config.h"
 
 #include "esp_adc/adc_oneshot.h"
 #include "esp_timer.h"
@@ -11,19 +10,20 @@ static const char *TAG = "hall";
 #define HALL_ADC_UNIT    ADC_UNIT_1
 #define HALL_ADC_CHANNEL ADC_CHANNEL_1
 
-#define WINDOW_SAMPLES   5
 #define SAMPLE_INTERVAL_US  50000
 #define RISE_THRESHOLD   50
+#define FALL_THRESHOLD   50
+#define BASELINE_NEAR    20
+
+typedef enum { HALL_IDLE, HALL_RISING, HALL_FALLING } hall_state_t;
 
 static adc_oneshot_unit_handle_t s_adc;
 
-static int      s_window[WINDOW_SAMPLES];
-static int      s_window_idx;
-static int64_t  s_last_sample_us;
-static int      s_window_first;
-static int      s_peak_val;
-static int64_t  s_peak_time_us;
-static bool     s_rise_detected;
+static int64_t     s_last_sample_us;
+static hall_state_t s_hall_state;
+static int         s_baseline;
+static int         s_peak_val;
+static int64_t     s_peak_time_us;
 
 void hall_init(void)
 {
@@ -39,11 +39,10 @@ void hall_init(void)
     };
     ESP_ERROR_CHECK(adc_oneshot_config_channel(s_adc, HALL_ADC_CHANNEL, &chan_cfg));
 
-    s_window_idx = 0;
     s_last_sample_us = 0;
-    s_rise_detected = false;
+    s_hall_state = HALL_IDLE;
+    s_baseline = 0;
     s_peak_val = 0;
-    s_window_first = 0;
 
     ESP_LOGI(TAG, "ADC ready (unit %d, ch %d)", HALL_ADC_UNIT, HALL_ADC_CHANNEL);
 }
@@ -64,63 +63,39 @@ void hall_monitor(void)
 
     int raw = hall_read();
 
-    if (s_window_idx == 0) {
-        if (!s_rise_detected) {
-            s_window_first = raw;
-            if (s_peak_val == 0) s_peak_val = raw;
+    switch (s_hall_state) {
+    case HALL_IDLE:
+        if (s_baseline == 0)
+            s_baseline = raw;
+        else
+            s_baseline = (s_baseline * 7 + raw) / 8;
+
+        if (raw > s_baseline + RISE_THRESHOLD) {
+            s_hall_state = HALL_RISING;
+            s_peak_val = raw;
+            s_peak_time_us = now_us;
+            ESP_LOGI(TAG, "rise detected, raw=%d baseline=%d", raw, s_baseline);
         }
-    }
+        break;
 
-    s_window[s_window_idx] = raw;
-
-    if (raw > s_peak_val) {
-        s_peak_val = raw;
-        s_peak_time_us = now_us;
-    }
-
-    s_window_idx++;
-    if (s_window_idx < WINDOW_SAMPLES)
-        return;
-
-    s_window_idx = 0;
-
-    int wmin = s_window[0], wmax = s_window[0];
-    for (int i = 1; i < WINDOW_SAMPLES; i++) {
-        if (s_window[i] < wmin) wmin = s_window[i];
-        if (s_window[i] > wmax) wmax = s_window[i];
-    }
-    if (wmax - wmin < RISE_THRESHOLD) {
-        s_window_first = raw;
-        return;
-    }
-
-    if (!s_rise_detected) {
-        int above = 0;
-        for (int i = 0; i < WINDOW_SAMPLES; i++) {
-            if (s_window[i] > s_window_first + RISE_THRESHOLD) above++;
+    case HALL_RISING:
+        if (raw > s_peak_val) {
+            s_peak_val = raw;
+            s_peak_time_us = now_us;
         }
-        if (above > WINDOW_SAMPLES / 2) {
-            s_rise_detected = true;
-            ESP_LOGI(TAG, "monitor: rise detected, peak=%d", s_peak_val);
-        }
-        s_window_first = raw;
-    } else {
-        int below = 0;
-        for (int i = 0; i < WINDOW_SAMPLES; i++) {
-            if (s_window[i] < s_peak_val) below++;
-        }
-        if (below > WINDOW_SAMPLES / 2) {
+        if (raw < s_peak_val - FALL_THRESHOLD) {
+            s_hall_state = HALL_FALLING;
             state.zero_position_us = s_peak_time_us;
+            state.zero_detected = true;
+            ESP_LOGI(TAG, "fall detected, peak=%d", s_peak_val);
+        }
+        break;
 
-            uint32_t elapsed_ms = (uint32_t)((now_us - state.state_start_us) / 1000);
-            uint32_t overshoot_ms = (uint32_t)((now_us - s_peak_time_us) / 1000);
-            uint32_t expected = ((elapsed_ms + CYCLE / 2) / CYCLE) * CYCLE + overshoot_ms;
-            int32_t correction_ms = (int32_t)expected - (int32_t)elapsed_ms;
-            state.state_start_us -= (int64_t)correction_ms * 1000;
-
-            ESP_LOGI(TAG, "fall detected, peak=%d, correction=%ldms", s_peak_val, (long)correction_ms);
-            s_rise_detected = false;
+    case HALL_FALLING:
+        if (raw < s_baseline + BASELINE_NEAR) {
+            s_hall_state = HALL_IDLE;
             s_peak_val = 0;
         }
+        break;
     }
 }

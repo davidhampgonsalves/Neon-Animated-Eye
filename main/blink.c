@@ -6,15 +6,13 @@
 #include "esp_log.h"
 #include <stdlib.h>
 
-#define TWO_CYCLE (CYCLE * 2)
-
 #define START 0
 #define LIDS_MEET (HALF_CYCLE - 1000)
 #define EYE_CLOSED (HALF_CYCLE + (HALF_CYCLE/4))
 #define LIDS_MEET_2 (EYE_CLOSED + (EYE_CLOSED - LIDS_MEET))
 #define FINISH -1 // probably don't need
 
-#define SPEED_RAMP_WINDOW 1000
+#define SPEED_RAMP_WINDOW 2000
 
 static uint8_t get_motor_speed(uint32_t elapsed)
 {
@@ -102,9 +100,11 @@ bool blink(uint32_t elapsed)
   uint8_t speed = get_motor_speed(elapsed);
 
   if (elapsed < LIDS_MEET) {
+    state.zero_detected = false;
     motor_drive_at_speed(true, speed);
     animate_open_close(elapsed);
   } else if (elapsed < LID_TRANSITION_END_2) {
+    state.zero_detected = false;
     if (elapsed < EYE_CLOSED)
       motor_drive_at_speed(true, speed);
     else if (elapsed < EYE_CLOSED + 50)
@@ -114,12 +114,15 @@ bool blink(uint32_t elapsed)
     else
       motor_drive_at_speed(true, speed);
     animate_lid_close(elapsed);
-  } else if (elapsed < TWO_CYCLE) {
+  } else {
     motor_drive_at_speed(true, speed);
     animate_open_close(elapsed - LID_TRANSITION_END_2 + CYCLE - LIDS_MEET);
-  } else {
-    motor_coast();
-    return true;
+
+    if (state.zero_detected) {
+      state.zero_detected = false;
+      motor_coast();
+      return true;
+    }
   }
 
   leds_refresh();

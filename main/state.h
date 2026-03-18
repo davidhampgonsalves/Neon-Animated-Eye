@@ -13,6 +13,7 @@ typedef struct {
     int64_t      state_start_us;
     uint32_t     state_duration_ms;
     int64_t      zero_position_us;
+    bool         zero_detected;
 } state_t;
 
 extern state_t state;
