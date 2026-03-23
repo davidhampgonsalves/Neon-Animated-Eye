@@ -8,7 +8,7 @@
 
 #define START 0
 #define LIDS_MEET (HALF_CYCLE - 1000)
-#define EYE_CLOSED (HALF_CYCLE + (HALF_CYCLE/4))
+#define EYE_CLOSED (HALF_CYCLE + (HALF_CYCLE/8))
 #define LIDS_MEET_2 (EYE_CLOSED + (EYE_CLOSED - LIDS_MEET))
 #define FINISH -1 // probably don't need
 
@@ -23,10 +23,10 @@ static uint8_t get_motor_speed(uint32_t elapsed)
   return MOTOR_SPEED + (MOTOR_SPEED_PEAK - MOTOR_SPEED) * (SPEED_RAMP_WINDOW - dist) / SPEED_RAMP_WINDOW;
 }
 
-uint32_t eye_schedule[] = { 3700, 3882, 4000, 4329, 5125, 5722 };
+uint32_t eye_schedule[] = { 3300, 3500, 3700, 3900, 4000, 4700, 4900 };
 size_t eye_schedule_len = sizeof(eye_schedule) / sizeof(eye_schedule[0]);
 
-uint32_t lid_schedule[] = { 0, 2000, 4500 };
+uint32_t lid_schedule[] = { 500, 2000, 4500 };
 size_t lid_schedule_len = sizeof(lid_schedule) / sizeof(lid_schedule[0]);
 
 void animate_open_close(uint32_t elapsed) {
@@ -56,8 +56,6 @@ void animate_open_close(uint32_t elapsed) {
     if(elapsed > end) continue;
 
     int percentage_complete = 100 - ((elapsed - start) * 100 / (end - start));
-
-    // ESP_LOGI("blink", "elapsed=%lu, %=%d, start=%lu, end=%lu", elapsed, percentage_complete, start, end);
 
     occlude_lid(count, percentage_complete);
     break;
