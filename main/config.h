@@ -2,8 +2,10 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#define HALF_CYCLE 6687
-#define CYCLE (HALF_CYCLE * 2)
+#define HALF_CYCLE_HALF_MODE 6687
+#define HALF_CYCLE_FULL_MODE 6200
+#define CYCLE_HALF_MODE (HALF_CYCLE_HALF_MODE * 2)
+#define CYCLE_FULL_MODE (HALF_CYCLE_FULL_MODE * 2)
 
 typedef struct { uint8_t r, g, b; } rgb_t;
 
@@ -47,6 +49,8 @@ typedef struct {
 
     float    flame_probability;
     uint32_t flame_flicker_rate_ms;
+
+    bool     two_cycle_animation;
 } config_t;
 
 static const config_t CONFIG_DEFAULT = {
@@ -75,4 +79,6 @@ static const config_t CONFIG_DEFAULT = {
 
     .flame_probability         = 0.10f,
     .flame_flicker_rate_ms     = 80,
+
+    .two_cycle_animation       = true,
 };

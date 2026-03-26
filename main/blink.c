@@ -6,9 +6,14 @@
 #include "esp_log.h"
 #include <stdlib.h>
 
+extern const config_t *g_cfg;
+
+static uint32_t s_half_cycle;
+static uint32_t s_cycle;
+
 #define START 0
-#define LIDS_MEET (HALF_CYCLE - 1000)
-#define EYE_CLOSED (HALF_CYCLE + (HALF_CYCLE/8))
+#define LIDS_MEET (s_half_cycle - 1000)
+#define EYE_CLOSED (s_half_cycle + (s_half_cycle/8))
 #define LIDS_MEET_2 (EYE_CLOSED + (EYE_CLOSED - LIDS_MEET))
 #define FINISH -1 // probably don't need
 
@@ -23,22 +28,22 @@ static uint8_t get_motor_speed(uint32_t elapsed)
   return MOTOR_SPEED + (MOTOR_SPEED_PEAK - MOTOR_SPEED) * (SPEED_RAMP_WINDOW - dist) / SPEED_RAMP_WINDOW;
 }
 
-uint32_t eye_schedule[] = { 3300, 3500, 3700, 3900, 4000, 4700, 4900 };
+uint32_t eye_schedule[] = { 3300, 3500, 3700, 3900, 4300, 5100, 5400 };
 size_t eye_schedule_len = sizeof(eye_schedule) / sizeof(eye_schedule[0]);
 
 uint32_t lid_schedule[] = { 500, 2000, 4500 };
 size_t lid_schedule_len = sizeof(lid_schedule) / sizeof(lid_schedule[0]);
 
 void animate_open_close(uint32_t elapsed) {
-  elapsed = elapsed % CYCLE;
-  if(elapsed > HALF_CYCLE) elapsed = HALF_CYCLE-(elapsed-HALF_CYCLE);
+  elapsed = elapsed % s_cycle;
+  if(elapsed > s_half_cycle) elapsed = s_half_cycle-(elapsed-s_half_cycle);
 
   if (elapsed < eye_schedule[0]) {
     occlude_eye(0, 100);
   } else {
     for (int count = 0; count < eye_schedule_len; count++) {
       uint32_t start = eye_schedule[count];
-      uint32_t end = (count + 1) >= eye_schedule_len ? HALF_CYCLE : eye_schedule[count + 1];
+      uint32_t end = (count + 1) >= eye_schedule_len ? s_half_cycle : eye_schedule[count + 1];
 
       if (elapsed > end) continue;
 
@@ -51,7 +56,7 @@ void animate_open_close(uint32_t elapsed) {
 
   for(int count=0 ; count < lid_schedule_len ; count++) {
     uint32_t start = lid_schedule[count];
-    uint32_t end = (count + 1) >= lid_schedule_len ? HALF_CYCLE : lid_schedule[count+1];
+    uint32_t end = (count + 1) >= lid_schedule_len ? s_half_cycle : lid_schedule[count+1];
 
     if(elapsed > end) continue;
 
@@ -93,7 +98,25 @@ void animate_lid_close(uint32_t elapsed) {
   }
 }
 
-bool blink(uint32_t elapsed)
+static bool blink_one_cycle(uint32_t elapsed)
+{
+  if (elapsed < s_half_cycle)
+    state.zero_detected = false;
+
+  motor_drive(true);
+  animate_open_close(elapsed);
+
+  if (state.zero_detected) {
+    state.zero_detected = false;
+    motor_coast();
+    return true;
+  }
+
+  leds_refresh();
+  return false;
+}
+
+static bool blink_two_cycle(uint32_t elapsed)
 {
   uint8_t speed = get_motor_speed(elapsed);
 
@@ -114,7 +137,7 @@ bool blink(uint32_t elapsed)
     animate_lid_close(elapsed);
   } else {
     motor_drive_at_speed(true, speed);
-    animate_open_close(elapsed - LID_TRANSITION_END_2 + CYCLE - LIDS_MEET);
+    animate_open_close(elapsed - LID_TRANSITION_END_2 + s_cycle - LIDS_MEET);
 
     if (state.zero_detected) {
       state.zero_detected = false;
@@ -124,6 +147,17 @@ bool blink(uint32_t elapsed)
   }
 
   leds_refresh();
-
   return false;
+}
+
+bool blink(uint32_t elapsed)
+{
+  if (g_cfg->two_cycle_animation) {
+    s_half_cycle = HALF_CYCLE_FULL_MODE;
+    s_cycle = CYCLE_FULL_MODE;
+    return blink_two_cycle(elapsed);
+  }
+  s_half_cycle = HALF_CYCLE_HALF_MODE;
+  s_cycle = CYCLE_HALF_MODE;
+  return blink_one_cycle(elapsed);
 }
