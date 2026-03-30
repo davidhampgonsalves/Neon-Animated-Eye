@@ -17,9 +17,17 @@ static const char *TAG = "homing";
 
 int64_t homing_run(void)
 {
-    ESP_LOGI(TAG, "Homing — looking for rise...");
-
     motor_drive_homing();
+
+    ESP_LOGI(TAG, "Homing — waiting for baseline...");
+    for (;;) {
+        vTaskDelay(WINDOW_TICK);
+        int raw = hall_read();
+        if (raw < 2440)
+            break;
+    }
+
+    ESP_LOGI(TAG, "Homing — looking for rise...");
 
     int adc_raw = hall_read();
     int window_first = adc_raw;

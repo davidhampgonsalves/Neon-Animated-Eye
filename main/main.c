@@ -76,6 +76,7 @@ void app_main(void)
                 state.state = next_state(state.state);
                 state.state_start_us = esp_timer_get_time();
                 state.zero_detected = false;
+                hall_reset();
             }
         }
 

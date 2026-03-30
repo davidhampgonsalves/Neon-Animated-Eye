@@ -47,6 +47,13 @@ void hall_init(void)
     ESP_LOGI(TAG, "ADC ready (unit %d, ch %d)", HALL_ADC_UNIT, HALL_ADC_CHANNEL);
 }
 
+void hall_reset(void)
+{
+    s_hall_state = HALL_IDLE;
+    s_baseline = 0;
+    s_peak_val = 0;
+}
+
 int hall_read(void)
 {
     int raw = 0;
@@ -74,7 +81,8 @@ void hall_monitor(void)
             s_hall_state = HALL_RISING;
             s_peak_val = raw;
             s_peak_time_us = now_us;
-            ESP_LOGI(TAG, "rise detected, raw=%d baseline=%d", raw, s_baseline);
+            uint32_t elapsed_ms = (uint32_t)((now_us - state.state_start_us) / 1000);
+            ESP_LOGI(TAG, "rise detected, raw=%d baseline=%d elapsed=%lu", raw, s_baseline, (unsigned long)elapsed_ms);
         }
         break;
 
@@ -87,7 +95,8 @@ void hall_monitor(void)
             s_hall_state = HALL_FALLING;
             state.zero_position_us = s_peak_time_us;
             state.zero_detected = true;
-            ESP_LOGI(TAG, "fall detected, peak=%d", s_peak_val);
+            uint32_t elapsed_ms = (uint32_t)((now_us - state.state_start_us) / 1000);
+            ESP_LOGI(TAG, "fall detected, peak=%d elapsed=%lu", s_peak_val, (unsigned long)elapsed_ms);
         }
         break;
 
