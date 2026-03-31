@@ -36,39 +36,65 @@ static uint8_t get_motor_speed(uint32_t elapsed)
   return speed > 255 ? 255 : (uint8_t)speed;
 }
 
-uint32_t eye_schedule[] = { 1135, 1205, 1275, 1340, 1480, 1755, 1860 };
+uint32_t eye_schedule[][2] = {
+  { 0,    0 },
+  { 835,  0 },
+  { 950,  1 },
+  { 1080, 2 },
+  { 1190, 3 },
+  { 1360, 4 },
+  { 1600, 5 },
+  { 1800, 6 },
+  // { 2800, 6 },
+  { 1900, 5 },
+  { 2100, 4 },
+  { 2350, 3 },
+  { 2550, 2 },
+  { 2650, 1 },
+  { 2730, 0 },
+};
 size_t eye_schedule_len = sizeof(eye_schedule) / sizeof(eye_schedule[0]);
 
 uint32_t lid_schedule[] = { 170, 690, 1550 };
 size_t lid_schedule_len = sizeof(lid_schedule) / sizeof(lid_schedule[0]);
 
 void animate_open_close(uint32_t elapsed) {
-  elapsed = elapsed % s_cycle;
-  if(elapsed > s_half_cycle) elapsed = s_half_cycle-(elapsed-s_half_cycle);
+  uint32_t eye_elapsed = elapsed % s_cycle;
+  uint32_t lid_elapsed = elapsed % s_cycle;
+  if (lid_elapsed > s_half_cycle) lid_elapsed = s_half_cycle - (lid_elapsed - s_half_cycle);
 
-  if (elapsed < eye_schedule[0]) {
-    occlude_eye(0, 100);
-  } else {
-    for (int count = 0; count < eye_schedule_len; count++) {
-      uint32_t start = eye_schedule[count];
-      uint32_t end = (count + 1) >= eye_schedule_len ? s_half_cycle : eye_schedule[count + 1];
+  bool eye_set = false;
+  for (int i = 0; i < eye_schedule_len; i++) {
+    uint32_t start = eye_schedule[i][0];
+    uint32_t end = (i + 1) >= eye_schedule_len ? s_cycle : eye_schedule[i + 1][0];
 
-      if (elapsed > end) continue;
+    if (eye_elapsed > end) continue;
 
-      int percentage_complete = 100 - ((elapsed - start) * 100 / (end - start));
-      occlude_eye(count, percentage_complete);
+    int pct;
+    int count = eye_schedule[i][1];
+    int next_count = (i + 1) < eye_schedule_len ? eye_schedule[i + 1][1] : count;
 
-      break;
-    }
+    if (next_count > count)
+      pct = 100 - ((eye_elapsed - start) * 100 / (end - start));
+    else if (next_count < count)
+      pct = (eye_elapsed - start) * 100 / (end - start);
+    else
+      pct = 100;
+
+    occlude_eye(count, pct);
+    eye_set = true;
+    break;
   }
+  if (!eye_set)
+    occlude_eye(0, 100);
 
-  for(int count=0 ; count < lid_schedule_len ; count++) {
+  for (int count = 0; count < lid_schedule_len; count++) {
     uint32_t start = lid_schedule[count];
-    uint32_t end = (count + 1) >= lid_schedule_len ? s_half_cycle : lid_schedule[count+1];
+    uint32_t end = (count + 1) >= lid_schedule_len ? s_half_cycle : lid_schedule[count + 1];
 
-    if(elapsed > end) continue;
+    if (lid_elapsed > end) continue;
 
-    int percentage_complete = 100 - ((elapsed - start) * 100 / (end - start));
+    int percentage_complete = 100 - ((lid_elapsed - start) * 100 / (end - start));
 
     occlude_lid(count, percentage_complete);
     break;
