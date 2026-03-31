@@ -3,9 +3,7 @@
 #include <stdbool.h>
 
 #define HALF_CYCLE_HALF_MODE 2300
-#define HALF_CYCLE_FULL_MODE 4200
 #define CYCLE_HALF_MODE (HALF_CYCLE_HALF_MODE * 2)
-#define CYCLE_FULL_MODE (HALF_CYCLE_FULL_MODE * 2)
 
 typedef struct { uint8_t r, g, b; } rgb_t;
 
