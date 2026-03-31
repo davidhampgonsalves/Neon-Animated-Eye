@@ -12,7 +12,7 @@ static uint32_t s_half_cycle;
 static uint32_t s_cycle;
 static uint32_t (*s_eye_schedule)[2];
 static size_t s_eye_schedule_len;
-static uint32_t *s_lid_schedule;
+static uint32_t (*s_lid_schedule)[2];
 static size_t s_lid_schedule_len;
 
 #define TC_LIDS_MEET       1800
@@ -67,16 +67,28 @@ uint32_t eye_schedule_full[][2] = {
 };
 size_t eye_schedule_full_len = sizeof(eye_schedule_full) / sizeof(eye_schedule_full[0]);
 
-uint32_t lid_schedule_half[] = { 170, 690, 1550 };
+uint32_t lid_schedule_half[][2] = {
+  { 0,    0 },
+  { 170,  0 },
+  { 690,  1 },
+  { 1550, 2 },
+  { 2400, 2 },
+  { 2800, 1 },
+  { 3900, 0 },
+};
 size_t lid_schedule_half_len = sizeof(lid_schedule_half) / sizeof(lid_schedule_half[0]);
 
-uint32_t lid_schedule_full[] = { 50, 150, 350 };
+uint32_t lid_schedule_full[][2] = {
+  { 0,   0 },
+  { 50,  0 },
+  { 150, 1 },
+  { 350, 2 },
+};
 size_t lid_schedule_full_len = sizeof(lid_schedule_full) / sizeof(lid_schedule_full[0]);
 
 void animate_open_close(uint32_t elapsed) {
   uint32_t eye_elapsed = elapsed % s_cycle;
   uint32_t lid_elapsed = elapsed % s_cycle;
-  if (lid_elapsed > s_half_cycle) lid_elapsed = s_half_cycle - (lid_elapsed - s_half_cycle);
 
   bool eye_set = false;
   for (int i = 0; i < s_eye_schedule_len; i++) {
@@ -103,17 +115,31 @@ void animate_open_close(uint32_t elapsed) {
   if (!eye_set)
     occlude_eye(0, 100);
 
-  for (int count = 0; count < s_lid_schedule_len; count++) {
-    uint32_t start = s_lid_schedule[count];
-    uint32_t end = (count + 1) >= s_lid_schedule_len ? s_half_cycle : s_lid_schedule[count + 1];
+  bool lid_set = false;
+  for (int i = 0; i < s_lid_schedule_len; i++) {
+    uint32_t start = s_lid_schedule[i][0];
+    uint32_t end = (i + 1) >= s_lid_schedule_len ? s_cycle : s_lid_schedule[i + 1][0];
 
     if (lid_elapsed > end) continue;
 
-    int percentage_complete = 100 - ((lid_elapsed - start) * 100 / (end - start));
+    int pct;
+    int lid_count = s_lid_schedule[i][1];
+    int lid_next = (i + 1) < s_lid_schedule_len ? s_lid_schedule[i + 1][1] : lid_count;
 
-    occlude_lid(count, percentage_complete);
+    if (lid_next > lid_count) {
+      pct = 100 - ((lid_elapsed - start) * 100 / (end - start));
+      occlude_lid(lid_count, pct);
+    } else if (lid_next < lid_count) {
+      pct = (lid_elapsed - start) * 100 / (end - start);
+      occlude_lid(lid_next, pct);
+    } else {
+      occlude_lid(lid_count, 100);
+    }
+    lid_set = true;
     break;
   }
+  if (!lid_set)
+    occlude_lid(0, 100);
 }
 
 
@@ -130,12 +156,12 @@ void animate_lid_close(uint32_t elapsed) {
     if (e > TC_EYE_CLOSED)
       e = TC_EYE_CLOSED - (e - TC_EYE_CLOSED);
 
-    for (int count = 0; count < s_lid_schedule_len; count++) {
-      uint32_t start = s_lid_schedule[count] + TC_LID_TRANS_END;
-      uint32_t end = (count + 1) >= s_lid_schedule_len ? TC_EYE_CLOSED : s_lid_schedule[count + 1] + TC_LID_TRANS_END;
+    for (int i = 0; i < s_lid_schedule_len; i++) {
+      uint32_t start = s_lid_schedule[i][0] + TC_LID_TRANS_END;
+      uint32_t end = (i + 1) >= s_lid_schedule_len ? TC_EYE_CLOSED : s_lid_schedule[i + 1][0] + TC_LID_TRANS_END;
       if (e > end) continue;
       int percentage_complete = 100 - ((e - start) * 100 / (end - start));
-      occlude_bottom_lid(count, percentage_complete, false);
+      occlude_bottom_lid(s_lid_schedule[i][1], percentage_complete, false);
       break;
     }
 
