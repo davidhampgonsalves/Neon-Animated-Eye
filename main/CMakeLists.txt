@@ -7,8 +7,9 @@ idf_component_register(
         "homing.c"
         "idle.c"
         "blink.c"
-        "manual_animation.c"
+       
         "next_state.c"
+        "neon_flicker.c"
     INCLUDE_DIRS "."
     REQUIRES
         freertos

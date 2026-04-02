@@ -137,6 +137,60 @@ void transition_lids(int count, int percent_complete) {
     set_pixel(s_eyelid, i, 255 * (100 - percent_complete) / 100, 0, 255 * percent_complete / 100, 100);
 }
 
+void leds_set_all(bool on)
+{
+    const rgb_t c = g_cfg->eyeball_colour;
+    for (int i = 0; i < NUM_EYEBALL; i++) {
+        if (on)
+            led_strip_set_pixel(s_eyeball, i, c.r, c.g, c.b);
+        else
+            led_strip_set_pixel(s_eyeball, i, 0, 0, 0);
+    }
+    for (int i = START_TOP; i < END_TOP; i++) {
+        if (on)
+            led_strip_set_pixel(s_eyelid, i, 255, 0, 0);
+        else
+            led_strip_set_pixel(s_eyelid, i, 0, 0, 0);
+    }
+    for (int i = START_BOTTOM; i < END_BOTTOM; i++) {
+        if (on)
+            led_strip_set_pixel(s_eyelid, i, 0, 0, 255);
+        else
+            led_strip_set_pixel(s_eyelid, i, 0, 0, 0);
+    }
+}
+
+void leds_set_bottom_lid(bool on)
+{
+    for (int i = START_BOTTOM; i < END_BOTTOM; i++) {
+        if (on)
+            led_strip_set_pixel(s_eyelid, i, 0, 0, 255);
+        else
+            led_strip_set_pixel(s_eyelid, i, 0, 0, 0);
+    }
+}
+
+void leds_set_eyeball(bool on)
+{
+    const rgb_t c = g_cfg->eyeball_colour;
+    for (int i = 0; i < NUM_EYEBALL; i++) {
+        if (on)
+            led_strip_set_pixel(s_eyeball, i, c.r, c.g, c.b);
+        else
+            led_strip_set_pixel(s_eyeball, i, 0, 0, 0);
+    }
+}
+
+void leds_set_top_lid(bool on)
+{
+    for (int i = START_TOP; i < END_TOP; i++) {
+        if (on)
+            led_strip_set_pixel(s_eyelid, i, 255, 0, 0);
+        else
+            led_strip_set_pixel(s_eyelid, i, 0, 0, 0);
+    }
+}
+
 void leds_refresh(void)
 {
     led_strip_refresh(s_eyeball);

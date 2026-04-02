@@ -39,11 +39,6 @@ static void motor_drive_at(uint8_t speed, bool forward)
     gpio_set_level((gpio_num_t)MOTOR_PIN_AIN2, forward ? 0 : 1);
 }
 
-void motor_drive(bool forward)
-{
-    motor_drive_at(MOTOR_SPEED, forward);
-}
-
 void motor_drive_at_speed(bool forward, uint8_t speed)
 {
     motor_drive_at(speed, forward);

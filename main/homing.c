@@ -23,6 +23,7 @@ int64_t homing_run(void)
     for (;;) {
         vTaskDelay(WINDOW_TICK);
         int raw = hall_read();
+        ESP_LOGI(TAG, "baseline wait: raw=%d", raw);
         if (raw < 2440)
             break;
     }

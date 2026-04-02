@@ -8,8 +8,6 @@
 
 extern const config_t *g_cfg;
 
-static uint32_t s_half_cycle;
-static uint32_t s_cycle;
 static uint32_t (*s_eye_schedule)[2];
 static size_t s_eye_schedule_len;
 static uint32_t (*s_lid_schedule)[2];
@@ -28,8 +26,8 @@ static uint8_t get_motor_speed(uint32_t elapsed)
   int32_t dist1 = abs((int32_t)elapsed - (int32_t)TC_LIDS_MEET);
   int32_t dist2 = abs((int32_t)elapsed - (int32_t)TC_LIDS_MEET_2);
   int32_t dist = dist1 < dist2 ? dist1 : dist2;
-  if (dist >= SPEED_RAMP_WINDOW) return MOTOR_SPEED;
-  uint16_t speed = MOTOR_SPEED + (MOTOR_SPEED_PEAK - MOTOR_SPEED) * (SPEED_RAMP_WINDOW - dist) / SPEED_RAMP_WINDOW;
+  if (dist >= SPEED_RAMP_WINDOW) return MOTOR_SPEED_CLOSE;
+  uint16_t speed = MOTOR_SPEED_CLOSE + (MOTOR_SPEED_PEAK - MOTOR_SPEED_CLOSE) * (SPEED_RAMP_WINDOW - dist) / SPEED_RAMP_WINDOW;
   return speed > 255 ? 255 : (uint8_t)speed;
 }
 
@@ -86,14 +84,16 @@ uint32_t lid_schedule_full[][2] = {
 };
 size_t lid_schedule_full_len = sizeof(lid_schedule_full) / sizeof(lid_schedule_full[0]);
 
+static uint32_t s_anim_cycle;
+
 void animate_open_close(uint32_t elapsed) {
-  uint32_t eye_elapsed = elapsed % s_cycle;
-  uint32_t lid_elapsed = elapsed % s_cycle;
+  uint32_t eye_elapsed = elapsed % s_anim_cycle;
+  uint32_t lid_elapsed = elapsed % s_anim_cycle;
 
   bool eye_set = false;
   for (int i = 0; i < s_eye_schedule_len; i++) {
     uint32_t start = s_eye_schedule[i][0];
-    uint32_t end = (i + 1) >= s_eye_schedule_len ? s_cycle : s_eye_schedule[i + 1][0];
+    uint32_t end = (i + 1) >= s_eye_schedule_len ? s_anim_cycle : s_eye_schedule[i + 1][0];
 
     if (eye_elapsed > end) continue;
 
@@ -118,7 +118,7 @@ void animate_open_close(uint32_t elapsed) {
   bool lid_set = false;
   for (int i = 0; i < s_lid_schedule_len; i++) {
     uint32_t start = s_lid_schedule[i][0];
-    uint32_t end = (i + 1) >= s_lid_schedule_len ? s_cycle : s_lid_schedule[i + 1][0];
+    uint32_t end = (i + 1) >= s_lid_schedule_len ? s_anim_cycle : s_lid_schedule[i + 1][0];
 
     if (lid_elapsed > end) continue;
 
@@ -177,15 +177,15 @@ static bool blink_one_cycle(uint32_t elapsed)
 {
   if (!s_logged_constants) {
     ESP_LOGI("blink", "ONE_CYCLE: half_cycle=%lu cycle=%lu",
-             (unsigned long)s_half_cycle, (unsigned long)s_cycle);
+             (unsigned long)HALF_CYCLE_HALF_MODE, (unsigned long)CYCLE_HALF_MODE);
     s_logged_constants = true;
   }
 
-  if (elapsed < s_half_cycle)
+  if (elapsed < HALF_CYCLE_HALF_MODE)
     state.zero_detected = false;
 
-  uint32_t phase = elapsed % s_cycle;
-  if (phase < s_half_cycle)
+  uint32_t phase = elapsed % CYCLE_HALF_MODE;
+  if (phase < HALF_CYCLE_HALF_MODE)
     motor_drive_at_speed(true, MOTOR_SPEED_CLOSE);
   else
     motor_drive_at_speed(true, MOTOR_SPEED_OPEN);
@@ -206,7 +206,7 @@ static bool blink_two_cycle(uint32_t elapsed)
 {
   if (!s_logged_constants) {
     ESP_LOGI("blink", "TWO_CYCLE: half_cycle=%lu cycle=%lu lids_meet=%d eye_closed=%d lids_meet_2=%d lid_trans_end=%d lid_trans_end_2=%d",
-             (unsigned long)s_half_cycle, (unsigned long)s_cycle,
+             (unsigned long)HALF_CYCLE_HALF_MODE, (unsigned long)CYCLE_HALF_MODE,
              TC_LIDS_MEET, TC_EYE_CLOSED, TC_LIDS_MEET_2,
              TC_LID_TRANS_END, TC_LID_TRANS_END_2);
     s_logged_constants = true;
@@ -252,20 +252,77 @@ bool blink(uint32_t elapsed)
     s_last_log = elapsed;
   }
 
+  s_anim_cycle = CYCLE_HALF_MODE;
+
   if (g_cfg->two_cycle_animation) {
-    s_half_cycle = HALF_CYCLE_HALF_MODE;
-    s_cycle = CYCLE_HALF_MODE;
     s_eye_schedule = eye_schedule_full;
     s_eye_schedule_len = eye_schedule_full_len;
     s_lid_schedule = lid_schedule_full;
     s_lid_schedule_len = lid_schedule_full_len;
     return blink_two_cycle(elapsed);
   }
-  s_half_cycle = HALF_CYCLE_HALF_MODE;
-  s_cycle = CYCLE_HALF_MODE;
   s_eye_schedule = eye_schedule_half;
   s_eye_schedule_len = eye_schedule_half_len;
   s_lid_schedule = lid_schedule_half;
   s_lid_schedule_len = lid_schedule_half_len;
   return blink_one_cycle(elapsed);
+}
+
+#define SQUINT_CLOSE_MS   2100
+#define SQUINT_HOLD_MS    1700
+#define SQUINT_OPEN_MS    2400
+#define SQUINT_TOTAL_MS   (SQUINT_CLOSE_MS + SQUINT_HOLD_MS + SQUINT_OPEN_MS)
+
+uint32_t eye_schedule_squint[][2] = {
+  { 0,    0 },
+  { 700,  0 },
+  { 1100, 1 },
+  { 1500, 2 },
+  { 2000, 3 },
+  { 3800, 3 },
+  { 4200, 2 },
+  { 4800, 1 },
+  { 5500, 0 },
+};
+size_t eye_schedule_squint_len = sizeof(eye_schedule_squint) / sizeof(eye_schedule_squint[0]);
+
+uint32_t lid_schedule_squint[][2] = {
+  { 0,    0 },
+  { 500,  0 },
+  { 1800, 1 },
+  { 3800, 1 },
+  { 5200, 0 },
+};
+size_t lid_schedule_squint_len = sizeof(lid_schedule_squint) / sizeof(lid_schedule_squint[0]);
+
+bool squint(uint32_t elapsed)
+{
+  static uint32_t s_last_log = 0;
+  if (elapsed - s_last_log > 500 || elapsed < s_last_log) {
+    ESP_LOGI("squint", "elapsed=%lu", (unsigned long)elapsed);
+    s_last_log = elapsed;
+  }
+
+  if (elapsed >= SQUINT_TOTAL_MS) {
+    motor_coast();
+    return true;
+  }
+
+  if (elapsed < SQUINT_CLOSE_MS)
+    motor_drive_at_speed(true, MOTOR_SPEED_SQUINT_CLOSE);
+  else if (elapsed < SQUINT_CLOSE_MS + SQUINT_HOLD_MS)
+    motor_coast();
+  else
+    motor_drive_at_speed(false, MOTOR_SPEED_SQUINT_OPEN);
+
+  s_anim_cycle = SQUINT_TOTAL_MS;
+  s_eye_schedule = eye_schedule_squint;
+  s_eye_schedule_len = eye_schedule_squint_len;
+  s_lid_schedule = lid_schedule_squint;
+  s_lid_schedule_len = lid_schedule_squint_len;
+
+  animate_open_close(elapsed);
+
+  leds_refresh();
+  return false;
 }

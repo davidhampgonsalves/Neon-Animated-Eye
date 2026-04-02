@@ -5,7 +5,8 @@
 typedef enum {
     STATE_IDLE_OPEN,
     STATE_BLINKING,
-    STATE_MANUAL_ANIMATION,
+    STATE_SQUINTING,
+    STATE_NEON_FLICKER,
 } anim_state_t;
 
 typedef struct {

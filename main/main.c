@@ -11,7 +11,7 @@
 #include "homing.h"
 #include "idle.h"
 #include "blink.h"
-#include "manual_animation.h"
+#include "neon_flicker.h"
 #include "driver/usb_serial_jtag.h"
 
 static const char *TAG = "main";
@@ -67,8 +67,11 @@ void app_main(void)
                 case STATE_BLINKING:
                     complete = blink(elapsed_ms);
                     break;
-                case STATE_MANUAL_ANIMATION:
-                    complete = manual_animation(elapsed_ms);
+                case STATE_SQUINTING:
+                    complete = squint(elapsed_ms);
+                    break;
+                case STATE_NEON_FLICKER:
+                    complete = neon_flicker(elapsed_ms);
                     break;
             }
 
