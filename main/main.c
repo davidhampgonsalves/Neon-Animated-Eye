@@ -12,10 +12,8 @@
 #include "idle.h"
 #include "blink.h"
 #include "neon_flicker.h"
-#include "driver/usb_serial_jtag.h"
 
 static const char *TAG = "main";
-static bool s_running = true;
 
 state_t state = {0};
 const config_t *g_cfg = NULL;
@@ -35,52 +33,35 @@ void app_main(void)
     state.state = STATE_BLINKING;
     state.state_start_us = state.zero_position_us;
 
-    usb_serial_jtag_driver_config_t usb_cfg = {
-        .rx_buffer_size = 256,
-        .tx_buffer_size = 256,
-    };
-    ESP_ERROR_CHECK(usb_serial_jtag_driver_install(&usb_cfg));
-
     ESP_LOGI(TAG, "Entering main loop");
 
     for (;;) {
-        uint8_t ch;
-        if (usb_serial_jtag_read_bytes(&ch, 1, 0) > 0) {
-            s_running = !s_running;
-            if (!s_running) {
+        hall_monitor();
+
+        uint32_t elapsed_ms = (uint32_t)((esp_timer_get_time() - state.state_start_us) / 1000);
+        bool complete = false;
+
+        switch (state.state) {
+            case STATE_IDLE_OPEN:
                 motor_coast();
-                leds_off();
-            }
+                complete = idle(elapsed_ms);
+                break;
+            case STATE_BLINKING:
+                complete = blink(elapsed_ms);
+                break;
+            case STATE_SQUINTING:
+                complete = squint(elapsed_ms);
+                break;
+            case STATE_NEON_FLICKER:
+                complete = neon_flicker(elapsed_ms);
+                break;
         }
 
-        if (s_running) {
-            hall_monitor();
-
-            uint32_t elapsed_ms = (uint32_t)((esp_timer_get_time() - state.state_start_us) / 1000);
-            bool complete = false;
-
-            switch (state.state) {
-                case STATE_IDLE_OPEN:
-                    motor_coast();
-                    complete = idle(elapsed_ms);
-                    break;
-                case STATE_BLINKING:
-                    complete = blink(elapsed_ms);
-                    break;
-                case STATE_SQUINTING:
-                    complete = squint(elapsed_ms);
-                    break;
-                case STATE_NEON_FLICKER:
-                    complete = neon_flicker(elapsed_ms);
-                    break;
-            }
-
-            if (complete) {
-                state.state = next_state(state.state);
-                state.state_start_us = esp_timer_get_time();
-                state.zero_detected = false;
-                hall_reset();
-            }
+        if (complete) {
+            state.state = next_state(state.state);
+            state.state_start_us = esp_timer_get_time();
+            state.zero_detected = false;
+            hall_reset();
         }
 
         vTaskDelay(1);

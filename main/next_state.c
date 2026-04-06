@@ -2,8 +2,8 @@
 #include <stdint.h>
 #include "esp_timer.h"
 
-#define IDLE_MIN_MS 5000
-#define IDLE_MAX_MS 30000
+#define IDLE_MIN_MS 500
+#define IDLE_MAX_MS 1000
 
 static anim_state_t s_sequence[] = {
     STATE_BLINKING,

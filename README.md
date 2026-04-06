@@ -1,4 +1,10 @@
-# Kinetic Eye — ESP32-C3
+<div align="center">
+  <img width="800" src="example.gif">
+</div>
+
+
+This is my kinetic faux-neon animated eyeball. You can [read about it here](http://localhost:1313/neon-animated-eye/).
+
 
 ## Setup
 
